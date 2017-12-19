@@ -344,7 +344,7 @@
 				}
 				var zip = new JSZip( );
 				var promise = new JSZip.external.Promise(function (resolve, reject) {
-				    JSZipUtils.getBinaryContent('/modify/data/data.jsonc', function(err, data) {
+				    JSZipUtils.getBinaryContent('data/data.jsonc', function(err, data) {
 				        if (err) {
 				            reject(err);
 				        } else {
