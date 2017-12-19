@@ -1,0 +1,1918 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>Safetyline Jalousie - Information Guide</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<link rel="stylesheet" type="text/css" href="css/style.css">
+
+	</head>
+	<body>
+		<script type="text/javascript" src="js/MooTools-Core-1.6.0-compressed.js"></script>
+		<script src='http://cdnjs.cloudflare.com/ajax/libs/modernizr/2.0.6/modernizr.min.js' type='text/javascript'></script>
+		<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+		<!-- The user interface layout itself -->
+        </div>
+		<div id="container"></div>
+        <div id="uiContainer">
+			<a href="http://safetylinejalousie.com.au/" target="_blank"><img src="images/safetyline_logo.png" id="safetylineLogo" ></a>
+			<div id="loadingFullPanel" class="noselect">
+			    <img src="images/loading_clear.png" id="loadingImage">
+			</div>
+			<div id="installFrame" class="centredText noselect">
+				<h3 id="hero">INFORMATION GUIDE</h3>
+			</div>
+<!-- 			<div id="hamburger" onClick="help()">			</div>
+ -->
+			<img src="images/hamburger.png" id="hamburger" class="mybutton" onClick="toggleHamburger()">
+			<img src="images/VIGNETTE.png" id="vignette">
+
+			<div id="helpFullPanel" class="noselect">
+				<img src="images/help_mouse_2.png" id="helpImage" onClick="help()">
+			</div>
+			<div id="menuFullPanel" class="noselect">
+			    <!-- <img src="images/menu.png" id="menuImage"> -->
+			    <img src="images/help2.png" id="helpButton" class="mybutton" onClick="help()">
+			    <img src="images/fullscreen2.png" id="fullButton" class="mybutton" onClick="toggleFullscreen()">
+			    <img src="images/download2.png" id="downloadButton" class="mybutton" onclick="window.open('data/SLJ Design Manual A4 links.pdf')">
+			    <img src="images/GO TO WEBSITE.png" id="goToWebsite">
+			</div>
+
+			<div id="interaction">
+			    <img src="images/EXPLODE CIRCLE.png" id="explode" onClick="toggleExplode()" class="interaction notOnOpen">
+			    <img src="images/CLOSE LOUVRE.png" id="shutters" onClick="toggleShutters()" class="interaction notOnExplode">
+				<img src="images/REPLAY DEMO.png" id="replay" onClick="replayDemo()" class="interaction">
+			    <!--<img id="explode" src="images/intelisurfLogoFull.jpg" id="loadingImage">			    -->
+			</div>
+
+			<div id="info" class="centredText"><p id="infobox"></p></div>
+
+        </div>
+
+		<script src="js/three.min.js"></script>
+		<script src="js/OrbitControls.js"></script>
+
+		<script type="x-shader/x-vertex" id="vertexShader">
+
+			varying vec3 vWorldPosition;
+
+			void main() {
+
+				vec4 worldPosition = modelMatrix * vec4( position, 1.0 );
+				vWorldPosition = worldPosition.xyz;
+
+				gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+
+			}
+
+		</script>
+
+		<script type="x-shader/x-fragment" id="fragmentShader">
+
+			uniform vec3 topColor;
+			uniform vec3 bottomColor;
+			uniform float offset;
+			uniform float exponent;
+
+			varying vec3 vWorldPosition;
+
+			void main() {
+
+				float h = normalize( vWorldPosition + offset ).y;
+				gl_FragColor = vec4( mix( bottomColor, topColor, max( pow( max( h, 0.0 ), exponent ), 0.0 ) ), 1.0 );
+
+			}
+
+		</script>
+
+		<script>
+		// browser support
+
+			if (Modernizr.touch){
+			   // bind to touchstart, touchmove, etc and watch `event.streamId`
+			   // changes help screen to touch on touchscreens
+			//    controls.mouseButtons = { ORBIT: THREE.MOUSE.LEFT, ZOOM: THREE.MOUSE.MIDDLE, PAN: THREE.MOUSE.RIGHT };
+			   document.getElementById("helpImage").src = "images/help_mouse.png";
+			}
+
+			var user_agent = navigator.userAgent.toLowerCase(); // detect the user agent
+			// var ios_devices = user_agent.match(/(iphone|ipod|ipad)/)  ? "touchstart" : "click"; //check if the devices are ios devices
+			// window.addEvent("domready",function(){
+			// 	$('hamburger').bind('tap',toggleHamburger());
+			// 	toggleHamburger();
+			// 	$('helpImage').bind('tap',help());
+			// 	$('helpButton').bind('tap',help());
+			// 	$('fullButton').bind('tap',toggleFullscreen());
+			// 	$('downloadButton').bind('tap',"window.open('data/SLJ Design Manual A4 links.pdf')");
+			// 	$('explode').bind('tap',toggleExplode());
+			// 	$('shutters').bind('tap',toggleShutters());
+			// 	$('replay').bind('tap',"replayDemo()");
+			// });
+			var playAnim = true;
+			var helpOpen = false;
+			var menuOpen = false;
+			var isPaused = false;
+			var seqEnded = false;
+			var container, stats;
+			var camera, scene, raycaster, renderer;
+			var mouse = new THREE.Vector2(), INTERSECTED;
+			//var radius = 100, theta = 0;
+			// delta is the speed at which big things move, deltas for small
+			var delta = 0.005;
+			var deltas = 0.002;
+			// delta = 0.1;
+			// deltas = 0.05;
+			var done = 0;
+			// y displacement to lower all objects a small amount
+			var ydisp = 1.4;
+			var ydispzoom = 2.6;
+			var elementsLoaded = 0;
+			var currState = -1;
+			var lastState = currState;
+			var frameobjs = ["sidejamb1", "sidejamb2", "toptransom", "bottransom",
+				"gasketside1", "gasketside2", "gaskettransomu", "gaskettransoml"];
+			var framescrewobjs = ["screws1_1", "screws1_2"]
+			var allframeobjs = frameobjs.concat(framescrewobjs);
+			var louvre1objs = ["louvreglass", "louvrebearer", "glazinggasket",
+				"rebategasket", "endcap1", "endcap2", "axis1", "axis2"];
+			var louvreobjs = []; // louvres 2-19
+			for (var i = 2; i <= 19; i++) {
+				louvreobjs.push("louvre" + i);
+			}
+			var linkbarobjs = ["linkbar1", "linkbar2", "cams", "pivots1", "pivots2"];
+			var handleobjs = ["leveru", "leverl", "housingu", "housingl", "Lever mechanism screws"];
+			var miscobjs = ["jambcover1", "jambcover2", "drainage", "flyscreen", "flyscreen mesh"];
+			var noscrewobjs = allframeobjs.concat(louvre1objs, louvreobjs, linkbarobjs, handleobjs, miscobjs);
+			var allobjs = allframeobjs.concat(louvre1objs, louvreobjs, linkbarobjs, "screws2_1", "screws2_2", handleobjs, miscobjs);
+			var targetDistx = [
+				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //frame & gaskets
+				0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2,
+				0.2, 0.2, 0.2, 0.2,	0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, // louvre elements
+				0, 0, 0, 0, 0, -0.0237, -0.0237, // linkbar & pivots
+				-0.3, -0.3, -0.3, -0.3, -0.35, 0, 0, 0.2, -0.15, -0.15 // handles, drainage, misc
+			]
+			var targetDisty = [
+				0, 0, 0.3, -0.3, 0, 0, 0.25, -0.25, 0, 0, //frame & gaskets
+				.18, .18, .18, .18, .18, .18, .18, .18, .16, .14, .12, .10, .08,
+				.06, .04, .02, 0, -.02, -.04, -.06, -.08, -.10, -.12, -.14, -.16, -.18, // louvre elements
+				0, 0, 0, 0, 0, 0.5*ydisp, 0.5*ydisp, // linkbar & pivots
+				0, 0, 0, 0, 0, 0, 0, -0.2, 0, 0 // handles, drainage, misc
+			]
+			var targetDistz = [
+				0.15, -0.15, 0, 0, 0.1, -0.1, 0, 0, 0.2, -0.2, //frame & gaskets
+				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // louvre elements
+				.25, -.25, .25, .25, -.25, 0.65, -.65, // linkbar & pivots
+				0, 0, 0, 0, 0, .35, -.35, 0, 0, 0 // handles, drainage, misc
+			]
+
+			for (var i in targetDistx) {
+				targetDistx[i] *= 2;
+				targetDisty[i] *= 2;
+				targetDistz[i] *= 2;
+			}
+
+			var objects = [];
+
+			var shuttersOpen = true;
+			var exploded = false;
+
+			// window.addEvent("domready",function(){
+			// 	// loading screen - times out after 3 s
+			//     setTimeout(function(){
+			//         $(document.body).addClass('loaded');
+			//     }, 5000);
+			// });
+
+			// loading screen and progress bar
+			var manager = new THREE.LoadingManager();
+			manager.onProgress = function ( item, loaded, total ) {
+				console.log(item, loaded, total);
+				progressBar.style.width = (loaded / total * 100) + '%';
+				if (loaded == total) {
+					$(document.body).addClass('loaded');
+					currState = 0;
+				}
+			};
+			var progress = document.createElement('div');
+			progress.id = "progress";
+			var progressBar = document.createElement('div');
+			progressBar.id = "progressBar";
+			progress.appendChild(progressBar);
+			document.body.appendChild(progress);
+
+			/**
+			 * @author alteredq / http://alteredqualia.com/
+			 * @author mr.doob / http://mrdoob.com/
+			 */
+
+			var Detector = {
+
+				canvas: !! window.CanvasRenderingContext2D,
+				webgl: ( function () {
+
+					try {
+
+						var canvas = document.createElement( 'canvas' ); return !! ( window.WebGLRenderingContext && ( canvas.getContext( 'webgl' ) || canvas.getContext( 'experimental-webgl' ) ) );
+
+					} catch ( e ) {
+
+						return false;
+
+					}
+
+				} )(),
+				workers: !! window.Worker,
+				fileapi: window.File && window.FileReader && window.FileList && window.Blob,
+
+				getWebGLErrorMessage: function () {
+
+					var element = document.createElement( 'div' );
+					element.id = 'webgl-error-message';
+					element.style.fontFamily = 'monospace';
+					element.style.fontSize = '13px';
+					element.style.fontWeight = 'normal';
+					element.style.textAlign = 'center';
+					element.style.background = '#fff';
+					element.style.color = '#000';
+					element.style.padding = '1.5em';
+					element.style.width = '400px';
+					element.style.margin = '5em auto 0';
+
+					if ( ! this.webgl ) {
+
+						element.innerHTML = window.WebGLRenderingContext ? [
+							'Your graphics card does not seem to support <a href="http://khronos.org/webgl/wiki/Getting_a_WebGL_Implementation" style="color:#000">WebGL</a>.<br />',
+							'Find out how to get it <a href="http://get.webgl.org/" style="color:#000">here</a>.'
+						].join( '\n' ) : [
+							'Your browser does not seem to support <a href="http://khronos.org/webgl/wiki/Getting_a_WebGL_Implementation" style="color:#000">WebGL</a>.<br/>',
+							'Find out how to get it <a href="http://get.webgl.org/" style="color:#000">here</a>.'
+						].join( '\n' );
+
+					}
+
+					return element;
+
+				},
+
+				addGetWebGLMessage: function ( parameters ) {
+
+					var parent, id, element;
+
+					parameters = parameters || {};
+
+					parent = parameters.parent !== undefined ? parameters.parent : document.body;
+					id = parameters.id !== undefined ? parameters.id : 'oldie';
+
+					element = Detector.getWebGLErrorMessage();
+					element.id = id;
+
+					parent.appendChild( element );
+
+				}
+
+			};
+
+			// browserify support
+			if ( typeof module === 'object' ) {
+
+				module.exports = Detector;
+
+			}
+
+			if (Detector.webgl) {
+			    init();
+			    animate();
+			} else {
+			    var warning = Detector.getWebGLErrorMessage();
+			    document.getElementById('container').appendChild(warning);
+				document.getElementById("uiContainer").style.visibility= "hidden" ;
+			}
+
+
+			function init() {
+				container = document.createElement( 'div' );
+				document.body.appendChild( container );
+
+				var myfov = 20;
+				if(window.innerHeight > window.innerWidth){
+				    myfov = 45;
+				}
+				camera = new THREE.PerspectiveCamera( myfov, window.innerWidth / window.innerHeight, 0.1, 32 );
+				scene = new THREE.Scene();
+
+				// var light = new THREE.PointLight( 0xffffff, 0.4, 0 );
+				// light.position.set( 1, 1, 1 ).normalize();
+				// scene.add( light );
+				// var light2 = new THREE.AmbientLight( 0x404040 ); // soft white light
+				// scene.add( light2 );
+				// var light3 = new THREE.DirectionalLight( 0xffffff, 0.2 );
+				// light3.position.set( -1, -1, -1 ).normalize();
+				// scene.add( light3 );
+				// var light4 = new THREE.PointLight( 0xffffff, 0.6, 0 );
+				// light4.position.set( -5, 200, 0 );
+				// scene.add( light4 );
+
+				var light = new THREE.DirectionalLight( 0xffffff, 0.5 );
+				light.position.set( 1, 1, 1 ).normalize();
+				scene.add( light );
+				var light2 = new THREE.AmbientLight( 0x404040 ); // soft white light
+				scene.add( light2 );
+				var light3 = new THREE.DirectionalLight( 0x404040, 1);
+				light3.position.set( 1, 0, 1 ).normalize();
+				scene.add( light3 );
+				var light4 = new THREE.PointLight( 0xffffff, 0.6, 0 );
+				light4.position.set( 30, 200, 0 );
+				scene.add( light4 );
+
+				// SKYDOME
+
+				var vertexShader = document.getElementById( 'vertexShader' ).textContent;
+				var fragmentShader = document.getElementById( 'fragmentShader' ).textContent;
+				var uniforms = {
+					topColor: 	 { type: "c", value: new THREE.Color( 0x111111 ) },
+					bottomColor: { type: "c", value: new THREE.Color( 0xcccccc ) },
+					// bottomColor: { type: "c", value: new THREE.Color( 0x444444 ) },
+					offset:		 { type: "f", value: 40 },
+					exponent:	 { type: "f", value: 1 }
+				};
+				//uniforms.topColor.value.copy( light.color );
+
+				var skyGeo = new THREE.SphereGeometry( 20, 32, 15 );
+				var skyMat = new THREE.ShaderMaterial( {
+					uniforms: uniforms,
+					vertexShader: vertexShader,
+					fragmentShader: fragmentShader,
+					side: THREE.BackSide
+				} );
+
+				var sky = new THREE.Mesh( skyGeo, skyMat );
+				scene.add( sky );
+
+				camera.position.set(1, 5, 0);
+				camera.lookAt( scene.position );
+
+				load0();
+
+				controls = new THREE.OrbitControls( camera );
+				controls.rotateSpeed = 0.5;
+				controls.zoomSpeed = 1.2;
+				controls.panSpeed = 0.8;
+				controls.noZoom = false;
+				controls.noPan = false;
+				controls.enableDamping = true;
+				controls.dampingFactor = 0.22;
+			    controls.minDistance = 2;
+			    controls.maxDistance = 15;
+				// controls.enabled = false;
+				// controls.mouseButtons = { ORBIT: THREE.MOUSE.LEFT, ZOOM: THREE.MOUSE.MIDDLE, PAN: THREE.MOUSE.MIDDLE };
+
+
+				raycaster = new THREE.Raycaster();
+				renderer = new THREE.WebGLRenderer({antialias: true});
+				// renderer.setClearColor( 0x222222 );
+				renderer.setPixelRatio( window.devicePixelRatio );
+				renderer.setSize( window.innerWidth, window.innerHeight );
+				renderer.sortObjects = false;
+				container.appendChild(renderer.domElement);
+
+				//stats = new Stats();
+				//container.appendChild( stats.dom );
+				document.addEventListener( 'mousemove', onDocumentMouseMove, false );
+				document.addEventListener( 'mousedown', onDocumentMouseDown, false );
+				// document.addEventListener( 'touchstart', onDocumentTouchStart, false );
+				//
+				window.addEventListener( 'resize', onWindowResize, false );
+			}
+			function onWindowResize() {
+				camera.aspect = window.innerWidth / window.innerHeight;
+				camera.updateProjectionMatrix();
+				renderer.setSize( window.innerWidth, window.innerHeight );
+			}
+			function onDocumentMouseMove( event ) {
+				event.preventDefault();
+				mouse.x = ( event.clientX / window.innerWidth ) * 2 - 1;
+				mouse.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
+			}
+
+			function animate() {
+				if (!playAnim) return;
+				if (!isPaused) lastState = currState ;
+				// if (currState == -1) {
+				// 	pauseAnimation();
+				// } else
+				if (currState == 0.0){
+					gasketToFrame();
+				} else if (currState == 0.1) {
+					frameAssembly();
+				} else if (currState == 0.2) {
+					frameScrews();
+				} else if (currState == 0.3) {
+					zoomToLouvre();
+				} else if (currState == 1.0) {
+					gasketToBearer();
+				} else if (currState == 1.1) {
+					glassToBearer();
+				} else if (currState == 1.2) {
+					endcaps();
+				} else if (currState == 1.3) {
+					swingCameraForward();
+				} else if (currState == 1.4) {
+					louvre1ToFrame();
+				} else if (currState == 1.5) {
+					louvre1AxisIn();
+				} else if (currState == 1.6) {
+					panToLinkbar();
+				} else if (currState == 2.0) {
+					louvresIn();
+				} else if (currState == 2.1) {
+					linkbarIn();
+				} else if (currState == 2.2) {
+					screwsIn();
+				} else if (currState == 2.3) {
+					swingCameraBack();
+				} else if (currState == 3.0) {
+					handleIn();
+				} else if (currState == 3.1) {
+					jambCoversIn();
+				} else if (currState == 3.2) {
+					zoomToBottom2();
+				} else if (currState == 3.3) {
+					drainageCoverIn();
+				} else if (currState == 3.4) {
+					swingCameraBack2();
+				} else if (currState == 3.5) {
+					flyscreenIn();
+				} else if (currState == 3.6) {
+					swingCameraForward2();
+				} else if (currState == 3.7) {
+					$(document.body).addClass('notOnOpen');
+					openLouvres();
+					// controls.enabled = true;
+					// currState = 4.0;
+				} else if (currState == 3.8) {
+					$(document.body).addClass('interact');
+					document.getElementById("hero").innerHTML = "ORBIT, PAN, OR ZOOM";
+				} else if (currState == 4.1) {
+					$(document.body).addClass('notOnOpen');
+					openLouvres();
+				} else if (currState == 4.2) {
+					$(document.body).removeClass('notOnOpen');
+					closeLouvres();
+				} else if (currState == 4.3) {
+					explodeFrame();
+					$(document.body).addClass('notOnExplode');
+					document.getElementById("hero").innerHTML = "Choose any part";
+				} else if (currState == 4.4) {
+					implodeFrame();
+					$(document.body).removeClass('notOnExplode');
+					document.getElementById("hero").innerHTML = "ORBIT, PAN, OR ZOOM";
+				}
+				requestAnimationFrame( animate );
+				render();
+				//stats.update();
+				// console.log(camera.position);
+			}
+			function render() {
+				controls.update();
+				renderer.render( scene, camera );
+			}
+
+			// function onDocumentTouchStart( event ) {
+			//
+			// 	event.preventDefault();
+			//
+			// 	event.clientX = event.touches[0].clientX;
+			// 	event.clientY = event.touches[0].clientY;
+			// 	onDocumentMouseDown( event );
+			//
+			// }
+
+			function onDocumentMouseDown( event ) {
+				if (currState < 4.0) return;
+				if (menuOpen) return;
+				event.preventDefault();
+
+				mouse.x = ( event.clientX / renderer.domElement.clientWidth ) * 2 - 1;
+				mouse.y = - ( event.clientY / renderer.domElement.clientHeight ) * 2 + 1;
+
+				raycaster.setFromCamera( mouse, camera );
+				var intersects = raycaster.intersectObjects( objects, true );
+
+				if ( intersects.length > 0 ) {
+					if (exploded == false) {
+						if (intersects[0].object.name == "Lever mechanism") toggleShutters();
+						return;
+					}
+					// console.log (intersects[0].object.name);
+					// intersects[ 0 ].object.material.color.setHex( Math.random() * 0xffffff );
+					if (intersects[0].object.name != "screws1_1"
+							&& intersects[0].object.name != "screws1_2") {
+						if (intersects[0].object.name == "AXIS_SCREWS.001") {
+							document.getElementById("infobox").innerHTML = "Axis screws";
+						} else {
+							document.getElementById("infobox").innerHTML = intersects[0].object.name;
+						}
+					} else {
+						document.getElementById("infobox").innerHTML = "Frame screws";
+					}
+			        $(document.body).addClass('objSelected');
+				} else {
+					$(document.body).removeClass('objSelected');
+				}
+			}
+
+			document.addEventListener('mousewheel', function(e){
+				if (e.ctrlKey) {
+					e.preventDefault();
+				}
+				if (e.deltaY % 1 !== 0){
+					e.preventDefault();
+				}
+			});
+
+			////////////////////////
+			//		   			  //
+			//	MUTUAL FUNCTIONS  //
+			//					  //
+			////////////////////////
+
+			//sotres functions mutual to info.html and install.html
+
+			// prevents spacebar from scrolling
+			window.onkeydown = function(e) {
+			  return !(e.keyCode == 32 && e.target == document.body);
+			};
+			// spacebar to pause
+			document.body.onkeyup = function(e){
+			    if(e.keyCode == 32){
+			        togglePause();
+			    }
+			}
+			function togglePause() {
+				if (seqEnded) {
+					currState = 4.3;
+				} else if (isPaused == false){
+					if (document.getElementById("pause")){
+						document.getElementById("pause").src = "images/INSTALL PLAY CIRCLE.png";
+					}
+					currState = -2;
+					isPaused = true;
+				} else {
+					if (document.getElementById("pause")){
+						document.getElementById("pause").src = "images/INSTALL PAUSE CIRCLE.png";
+					}
+					currState = lastState;
+					isPaused = false;
+				}
+			}
+
+			window.onresize = function(e) {
+				window.devicePixelRatio = 1;
+				var scale = 'scale(1)';
+				document.body.style.transform = scale;
+				document.body.style.webkitTransform = scale;
+				document.body.style.msTransform = scale;
+			}
+
+			function sleepNSeconds(n){
+				playAnim = false;
+				setTimeout(function(){
+					playAnim = true;
+					animate();
+				}, (n * 1000));
+			}
+
+			function toggleShutters(){
+				// only opens shutters if all elements loaded
+				if (currState != 4.0) { return; }
+
+				if( shuttersOpen == false ){
+			        document.getElementById("shutters").src = "images/CLOSE LOUVRE.png";
+			        shuttersOpen = true;
+			        currState = 4.1;
+			    }
+			    else {
+			        document.getElementById("shutters").src = "images/OPEN LOUVRE.png";
+			        shuttersOpen = false;
+			        currState = 4.2;
+			    }
+			}
+			function toggleExplode(){
+				if (shuttersOpen) {
+					currState = 4.0;
+					return;
+				}
+				if (currState != 4.0) return;
+				if (exploded == false) {
+					document.getElementById("explode").src = "images/ASSEMBLE CIRCLE.png";
+					exploded = true;
+					currState = 4.3;
+				} else {
+					document.getElementById("explode").src = "images/EXPLODE CIRCLE.png";
+					exploded = false;
+					currState = 4.4;
+				}
+			}
+
+			function toggleHamburger(){
+				if ( helpOpen ) {
+					help();
+				} else if( menuOpen == false ){
+			        document.getElementById("hamburger").src = "images/close2.png";
+			        if (isPaused == false) togglePause();
+			        $(document.body).addClass('menu');
+			        menuOpen = true;
+			        $(document.body).removeClass('interact');
+			    }
+			    else {
+			        document.getElementById("hamburger").src = "images/hamburger.png";
+			        togglePause();
+			        $(document.body).removeClass('menu');
+			        menuOpen = false;
+			        if (currState >= 4.0) $(document.body).addClass('interact');
+			    }
+			}
+			function help(){
+				// console.log("help clicked");
+				if( helpOpen == false ){
+			        $(document.body).addClass('help');
+			        helpOpen = true;
+			    }
+			    else {
+			        $(document.body).removeClass('help');
+			        helpOpen = false;
+			    }
+			}
+			function toggleFullscreen(){
+				//
+			    if ((document.fullScreenElement && document.fullScreenElement !== null) ||
+				   (!document.mozFullScreen && !document.webkitIsFullScreen)) {
+				    if (document.documentElement.requestFullScreen) {
+				        document.documentElement.requestFullScreen();
+				    } else if (document.documentElement.mozRequestFullScreen) {
+				        document.documentElement.mozRequestFullScreen();
+				    } else if (document.documentElement.webkitRequestFullScreen) {
+				        document.documentElement.webkitRequestFullScreen(Element.ALLOW_KEYBOARD_INPUT);
+				    }
+				} else {
+				    if (document.cancelFullScreen) {
+				        document.cancelFullScreen();
+				    } else if (document.mozCancelFullScreen) {
+				        document.mozCancelFullScreen();
+				    } else if (document.webkitCancelFullScreen) {
+				        document.webkitCancelFullScreen();
+				    }
+				}
+
+			}
+			function download(){
+				//
+			}
+
+
+			function pauseAnimation() {
+				sleepNSeconds(5);
+					playAnim = false;
+				setTimeout(function(){
+					playAnim = true;
+					animate();
+					var object = scene.getObjectByName( "sidejamb1", true );
+					object.visible = true;
+					object = scene.getObjectByName( "sidejamb2", true );
+					object.visible = true;
+					object = scene.getObjectByName( "toptransom", true );
+					object.visible = true;
+					object = scene.getObjectByName( "bottransom", true );
+					object.visible = true;
+
+
+				}, (5000));
+
+				currState = 0.0;
+				document.getElementById("hero").innerHTML = "INTERNAL RUBBER GASKETS";
+			}
+
+			function gasketToFrame(){
+				done++;
+				// slides gaskets into frame pieces
+				var object = scene.getObjectByName( "gasketside1", true );
+				if (object && object.position.z < .4) { object.position.z += .7*delta; done = 0; }
+				object = scene.getObjectByName( "gasketside2", true );
+				if (object && object.position.z > -.4) { object.position.z -= .7*delta; done = 0; }
+				object = scene.getObjectByName( "gaskettransomu", true );
+				if (object && object.position.y < .4 - ydisp) { object.position.y += .7*delta; done = 0; }
+				object = scene.getObjectByName( "gaskettransoml", true );
+				if (object && object.position.y > -.4 - ydisp) { object.position.y -= .7*delta; done = 0; }
+				// changes state 0.5s after assembly
+				if (done > 0) {
+					sleepNSeconds(0.5);
+					currState = 0.1;
+					document.getElementById("hero").innerHTML = "TRANSOM AND SIDE JAMBS";
+				}
+			}
+			function frameAssembly(){
+				done++;
+
+				// move all objects in frame towards 0,0,0
+				var object = scene.getObjectByName( "sidejamb1", true );
+				if (object && object.position.z > 0) { object.position.z -= delta; done = 0;}
+				object = scene.getObjectByName( "sidejamb2", true );
+				if (object && object.position.z < 0) { object.position.z += delta; done = 0;}
+				object = scene.getObjectByName( "toptransom", true );
+				if (object && object.position.y > 0 - ydisp) { object.position.y -= delta; done = 0;}
+				object = scene.getObjectByName( "bottransom", true );
+				if (object && object.position.y < 0 - ydisp) { object.position.y += delta; done = 0;}
+
+				var object = scene.getObjectByName( "gasketside1", true );
+				if (object && object.position.z > 0) { object.position.z -= delta; done = 0;}
+				object = scene.getObjectByName( "gasketside2", true );
+				if (object && object.position.z < 0) { object.position.z += delta; done = 0;}
+				object = scene.getObjectByName( "gaskettransomu", true );
+				if (object && object.position.y > 0 - ydisp) { object.position.y -= delta; done = 0;}
+				object = scene.getObjectByName( "gaskettransoml", true );
+				if (object && object.position.y < 0 - ydisp) { object.position.y += delta; done = 0;}
+
+				// changes state after assembled
+				if (done > 2) {
+					currState = 0.2;
+					showFrameScrews();
+					sleepNSeconds(0.5);
+					document.getElementById("hero").innerHTML = "EIGHT FRAME SCREWS";
+				}
+			}
+			function frameScrews(){
+				done++;
+				var object = scene.getObjectByName( "screws1_1", true );
+				if (object && object.position.z > 0) { object.position.z -= delta; done = 0;}
+				object = scene.getObjectByName( "screws1_2", true );
+				if (object && object.position.z < 0) { object.position.z += delta; done = 0;}
+
+				if (done > 30) {
+					currState = 0.3;
+					//sleepNSeconds(0.5);
+				}
+			}
+			function zoomToLouvre() {
+				done++;
+				for (var i in allframeobjs){
+				    (function(index){
+				        var object = scene.getObjectByName(allframeobjs[index], true);
+					    if (object && object.position.y > - (1.8 * ydisp - 10 * delta)) {
+					        object.position.y -= 4 * delta;
+					        done = 0;
+					    } else if (object && object.position.y > -1.8 * ydisp + .5* delta) {
+					        object.position.y -= delta;
+					        done = 0;
+					    }
+				    })(i);
+				}
+				if (camera.position.x < 1) {camera.position.x += 3*delta; done = 0;}
+				if (camera.position.y > 0.1) {camera.position.y -= 7*delta; done = 0;}
+				if (camera.position.z < 2) {camera.position.z += 3*delta; done = 0;}
+				if (done > 0 ) {
+					tare0();
+					load1();
+					currState = 1.0;
+					sleepNSeconds(1);
+					document.getElementById("hero").innerHTML = "LOUVRE GASKETS";
+				}
+			}
+			function gasketToBearer() {
+				// if the louvre elements are not loaded, load them
+				//if (elementsLoaded == 0) { load1(); done = 0;}
+				// else {
+					// louvre bearer is at y=-2.6+.25,
+					done++;
+					object = scene.getObjectByName( "glazinggasket", true );
+					if (object && object.position.y < -ydispzoom) { object.position.y += deltas; done = 0;}
+					object = scene.getObjectByName( "rebategasket", true );
+					if (object && object.position.y > -ydispzoom) { object.position.y -= deltas; done = 0;}
+				// }
+				if (done > 0) {
+					currState = 1.1;
+					elementsLoaded = 0;
+					sleepNSeconds(0.5);
+					document.getElementById("hero").innerHTML = "6MM GLAZING";
+				}
+			}
+			function glassToBearer() {
+				done++;
+				object = scene.getObjectByName( "louvreglass", true );
+				if (object && object.position.y < -ydispzoom) { object.position.y += 2*deltas; done = 0;}
+				// object = scene.getObjectByName( "glazinggasket", true );
+				// if (object && object.position.y > -ydispzoom) { object.position.y -= 2*deltas; done = 0;}
+				// object = scene.getObjectByName( "louvrebearer", true );
+				// if (object && object.position.y > -ydispzoom) { object.position.y -= 2*deltas; done = 0;}
+				if (done > 0) {
+					currState = 1.2;
+					sleepNSeconds(0.5);
+					document.getElementById("hero").innerHTML = "TRAINER BODY";
+				}
+			}
+			function endcaps() {
+				done++;
+				object = scene.getObjectByName( "endcap1", true );
+				if (object && object.position.z > 0) { object.position.z -= deltas; done = 0;}
+				object = scene.getObjectByName( "endcap2", true );
+				if (object && object.position.z < 0) { object.position.z += deltas; done = 0;}
+				if (done > 30) {currState = 1.3;
+				document.getElementById("hero").innerHTML = "LOUVRE ASSEMBLY";
+				}
+			}
+			function swingCameraForward() {
+				done++;
+				for (var i in louvre1objs){
+				    (function(index){
+				        var object = scene.getObjectByName(louvre1objs[index], true);
+				        if (object && object.position.x > 0) {
+					        object.position.x -= deltas;
+					        done = 0;
+					    }
+					    if (object && object.position.y < - 1.8 * ydisp) {
+					        object.position.y += .35*deltas;
+					        done = 0;
+					    }
+				    })(i);
+				}
+				if (done > 5) {currState = 1.4;}
+			}
+			function louvre1ToFrame(){
+				done++;
+
+				if (camera.position.x > -.75) {camera.position.x -= 3*delta; done = 0;}
+				if (camera.position.y > -0.1) {camera.position.y -= 1*delta; done = 0;}
+				if (camera.position.z < 1.9) {camera.position.z += 1*delta; done = 0;}
+
+				if (done > 2) {currState = 1.5;
+					document.getElementById("hero").innerHTML = "AXIS RODS";
+				}
+			}
+			function louvre1AxisIn() {
+				done++;
+				if (elementsLoaded == 0) {
+					//load0();
+					load1_1();
+				}
+				object = scene.getObjectByName( "axis1", true );
+				if (object && object.position.z > 0) { object.position.z -= delta; done = 0;}
+				object = scene.getObjectByName( "axis2", true );
+				if (object && object.position.z < 0) { object.position.z += delta; done = 0;}
+
+				if (done > 60) {
+					currState = 1.6;
+					elementsLoaded = 0;
+				}
+			}
+			function panToLinkbar(){
+				done++;
+
+				if (camera.position.x < -.5) {camera.position.x += delta; done = 0;}
+
+				if (done > 2) {currState = 2.0; }
+			}
+			function louvresIn(){
+				done++;
+				if (elementsLoaded == 0) {
+					load2();
+					load2_1();
+					elementsLoaded = 1;
+					done = 0;
+				}
+				if (done > 0) {
+					currState = 2.1;
+					elementsLoaded = 0;
+					document.getElementById("hero").innerHTML = "LINK BAR";
+					sleepNSeconds(1);
+				}
+			}
+			function linkbarIn(){
+				done++;
+				if (elementsLoaded == 0) {
+					//load2_1();
+					elementsLoaded = 1;
+					done = 0;
+				} else {
+					object = scene.getObjectByName( "pivots1", true );
+					if (object && object.position.z > 0) { object.position.z -= delta; done = 0;}
+					object = scene.getObjectByName( "pivots2", true );
+					if (object && object.position.z < 0) { object.position.z += delta; done = 0;}
+					object = scene.getObjectByName( "linkbar1", true );
+					if (object && object.position.z > 0) { object.position.z -= delta; done = 0;}
+					object = scene.getObjectByName( "cams", true );
+					if (object && object.position.z > 0) { object.position.z -= delta; done = 0;}
+					object = scene.getObjectByName( "linkbar2", true );
+					if (object && object.position.z < 0) { object.position.z += delta; done = 0;}
+				}
+				if (done > 0) {
+					currState = 2.2;
+					elementsLoaded = 0;
+					load2_screws();
+					sleepNSeconds(0.5);
+					document.getElementById("hero").innerHTML = "AXIS SCREWS";
+				}
+			}
+			function screwsIn() {
+				done++;
+
+				object = scene.getObjectByName( "screws2_1", true );
+				if (object && object.position.z > 0.66) {
+					object.position.z -= delta;
+					done = 0;
+				}
+				object = scene.getObjectByName( "screws2_2", true );
+				if (object && object.position.z < -0.66) {
+					object.position.z += delta;
+					done = 0;
+				}
+				if (done > 0) {
+					currState = 2.3;
+					sleepNSeconds(1);
+				}
+			}
+			function swingCameraBack() {
+				done++;
+				var objsToMove = allframeobjs.concat(louvre1objs, louvreobjs, linkbarobjs);
+				for (var i in objsToMove){
+				    (function(index){
+				        var object = scene.getObjectByName(objsToMove[index], true);
+					    if (object && object.position.y < -1.25 * ydisp) {
+					        object.position.y += 3 * delta;
+					        done = 0;
+					    } else if (object && object.position.y < -1.2*ydisp) {
+					        object.position.y += delta;
+					        done = 0;
+					    }
+				    })(i);
+				}
+				var screw1 = scene.getObjectByName("screws2_1", true);
+				var screw2 = scene.getObjectByName("screws2_2", true);
+				if (screw1 && screw2 && screw1.position.y < -0.275 * ydisp) {
+					screw1.position.y += 3 * delta;
+					screw2.position.y += 3 * delta;
+					done = 0;
+				} else if (screw1 && screw2 && screw1.position.y < -0.228*ydisp) {
+					screw1.position.y += delta;
+					screw2.position.y += delta;
+					done = 0;
+				}
+				if (camera.position.x > -1) {camera.position.x -= 3*delta; done = 0;}
+				if (camera.position.y < 0.5) {camera.position.y += 3*delta; done = 0;}
+				if (camera.position.z < 2) {camera.position.z += 3*delta; done = 0;}
+				if (done > 5) {
+					currState = 3.0;
+					load3_1();
+					elementsLoaded = 0;
+					document.getElementById("hero").innerHTML = "RIGHT MANEUVER WITH LEVER";
+				}
+			}
+
+			function handleIn(){
+				done++;
+				object = scene.getObjectByName( "leveru", true );
+				if (object && object.position.x < 0) { object.position.x += delta; done = 0;}
+				object = scene.getObjectByName( "leverl", true );
+				if (object && object.position.x < 0) { object.position.x += delta; done = 0;}
+				object = scene.getObjectByName( "housingu", true );
+				if (object && object.position.x < 0) { object.position.x += delta; done = 0;}
+				object = scene.getObjectByName( "housingl", true );
+				if (object && object.position.x < 0) { object.position.x += delta; done = 0;}
+				object = scene.getObjectByName( "Lever mechanism screws", true );
+				if (object && object.position.x < 0) { object.position.x += delta; done = 0;}
+				// object = scene.getObjectByName( "screws3l", true );
+				// if (object && object.position.x < 0) { object.position.x += delta; done = 0;}
+				if (done > 30) {
+					currState = 3.1;
+					elementsLoaded = 0;
+					document.getElementById("hero").innerHTML = "SIDE JAMB COVERS";
+				}
+			}
+
+			function jambCoversIn() {
+				done++;
+				showObject("jambcover1");
+				showObject("jambcover2");
+				object = scene.getObjectByName( "jambcover1", true );
+				if (object && object.position.z > 0) { object.position.z -= delta; done = 0;}
+				object = scene.getObjectByName( "jambcover2", true );
+				if (object && object.position.z < 0) { object.position.z += delta; done = 0;}
+				if (done > 0) {
+					currState = 3.2;
+					sleepNSeconds(0.5);
+				}
+			}
+
+			function zoomToBottom2() {
+				done++;
+				var objsToMove = allframeobjs.concat(louvre1objs, louvreobjs, linkbarobjs,
+				 "screws2_1", "screws2_2", handleobjs, "jambcover1", "jambcover2");
+				for (var i in objsToMove){
+				    (function(index){
+				        var object = scene.getObjectByName(objsToMove[index], true);
+					    if (object && object.position.y < -.5*ydisp) {
+					        object.position.y += 3 * delta;
+					        done = 0;
+					    }
+				    })(i);
+				}
+				var screw1 = scene.getObjectByName("screws2_1", true);
+				var screw2 = scene.getObjectByName("screws2_2", true);
+				if (screw1 && screw2 && screw1.position.y < .525 * ydisp) {
+					screw1.position.y += 3 * delta;
+					screw2.position.y += 3 * delta;
+					done = 0;
+				}
+				if (camera.position.x < 1.2) {camera.position.x += 3*delta; done = 0;}
+				if (camera.position.y > -3) {camera.position.y -= 7*delta; done = 0;}
+				if (camera.position.z > 0) {camera.position.z -= 3*delta; done = 0;}
+				if (done > 30) {
+					currState = 3.3;
+					document.getElementById("hero").innerHTML = "DEFLECTORS";
+				}
+			}
+
+			function drainageCoverIn(){
+				done++;
+				showObject("drainage");
+				object = scene.getObjectByName( "drainage", true );
+				if (object && object.position.x > 0) {
+					object.position.x -= delta;
+					done = 0;
+				}
+				if (done > 0) {
+					currState = 3.4;
+					sleepNSeconds(1);
+				}
+			}
+
+			function swingCameraBack2(){
+				done++;
+				for (var i in noscrewobjs){
+				    (function(index){
+				        var object = scene.getObjectByName(noscrewobjs[index], true);
+					    if (object && object.position.y > -(ydisp+6*delta)) {
+					        object.position.y -= 6 * delta;
+					        done = 0;
+					    } else if (object && object.position.y > -(ydisp+3*delta)) {
+					        object.position.y -= 2 * delta;
+					        done = 0;
+					    }
+				    })(i);
+				}
+				var screw1 = scene.getObjectByName("screws2_1", true);
+				var screw2 = scene.getObjectByName("screws2_2", true);
+				if (screw1 && screw2 && screw1.position.y > -(ydisp+6*delta) + 1.025*ydisp) {
+					screw1.position.y -= 6 * delta;
+					screw2.position.y -= 6 * delta;
+					done = 0;
+				}
+				if (camera.position.x > -7) {
+					camera.position.x -= 15*delta;
+					done = 0;
+				}
+				if (camera.position.y < 2) {camera.position.y += 10*delta; done = 0;}
+				if (camera.position.z < 5) {camera.position.z += 10*delta; done = 0;}
+				if (done > 0 ){
+					currState = 3.5;
+					document.getElementById("hero").innerHTML = "FLYSCREEN ASSEMBLY";
+				}
+
+			}
+			function flyscreenIn(){
+				done++;
+				showObject("flyscreen");
+				var object = scene.getObjectByName("flyscreen mesh", true);
+				if (object) {
+					object.visible = true;
+					// object.children[0].material.transparent = true;
+				    objects.push(object);
+				}
+
+				object = scene.getObjectByName( "flyscreen", true );
+				if (object && object.position.x < 0) {
+					object.position.x += 2 * delta;
+					done = 0;
+				}
+				object = scene.getObjectByName( "flyscreen mesh", true );
+				if (object && object.position.x < 0) {
+					object.position.x += 2 * delta;
+					done = 0;
+				}
+				if ( done > 0 ) {
+					currState = 3.6;
+					sleepNSeconds(0.5);
+				}
+			}
+
+			function showObject(toShow){
+				var object = scene.getObjectByName(toShow, true);
+				if (object && object.visible == false) {
+					object.visible = true;
+				    objects.push(object);
+				    sleepNSeconds(0.5);
+				}
+			}
+
+			function swingCameraForward2() {
+				done++;
+
+				if (camera.position.x < 7) {camera.position.x += 30*delta; done = 0;}
+				if (camera.position.y < 2) {camera.position.y += 3*delta; done = 0;}
+				if (camera.position.z < 5) {camera.position.z += 5*delta; done = 0;}
+				if (done > 3) {currState = 3.7; tare();}
+			}
+			function openLouvres(){
+				done++;
+				for (var i in louvre1objs){
+				    (function(index){
+					   var object = scene.getObjectByName(louvre1objs[index], true);
+					   if (object && object.rotation.z < 45*Math.PI / 180) {
+						   object.rotation.z += 0.01;
+						   object.position.x = 19*0.135*Math.sin(object.rotation.z);
+						   object.position.y = 19*0.135*(1 - Math.cos(object.rotation.z)) - ydisp+ 0.001;
+						   object.position.y += object.rotation.z * 0.02;
+						   done = 0;
+					   }
+				    })(i);
+				}
+				for (var i in louvreobjs){
+				    (function(index){
+					   var object = scene.getObjectByName(louvreobjs[index], true);
+					   if (object && object.rotation.z < 45*Math.PI / 180) {
+						   object.rotation.z += 0.01;
+						   object.position.x = (18-index)*0.135*Math.sin(object.rotation.z);
+						   object.position.y = (18-index)*0.135*(1 - Math.cos(object.rotation.z)) - ydisp+ 0.001;
+						   object.position.y += object.rotation.z * 0.02;
+						   done = 0;
+					   }
+				    })(i);
+				}
+				var object = scene.getObjectByName("leverl", true);
+			    if (object && object.rotation.z < 45*Math.PI / 180) {
+				   object.rotation.z += 0.01;
+				   object.position.x = 6*0.135*Math.sin(object.rotation.z);
+				   object.position.y = 6*0.135*(1 - Math.cos(object.rotation.z)) - ydisp+ 0.001;
+				   object.position.y += object.rotation.z * 0.02;
+				   done = 0;
+			    }
+			    var object = scene.getObjectByName("leveru", true);
+			    if (object && object.rotation.z < 45*Math.PI / 180) {
+				   object.rotation.z += 0.01;
+				   object.position.x = 13*0.135*Math.sin(object.rotation.z);
+				   object.position.y = 13*0.135*(1 - Math.cos(object.rotation.z)) - ydisp+ 0.001;
+				   object.position.y += object.rotation.z * 0.02;
+				   done = 0;
+			    }
+
+				if (done > 0) {currState = 4;
+					$(document.body).addClass('interact');
+					document.getElementById("hero").innerHTML = "ORBIT, PAN, OR ZOOM";
+				}
+			}
+			function closeLouvres() {
+				done++;
+					for (var i in louvre1objs){
+				    (function(index){
+					   var object = scene.getObjectByName(louvre1objs[index], true);
+					   if (object && object.rotation.z > 0) {
+						   object.rotation.z -= 0.01;
+						   object.position.x = 19*0.135*Math.sin(object.rotation.z);
+						   object.position.y = 19*0.135*(1 - Math.cos(object.rotation.z)) - ydisp + 0.001;
+						   object.position.y += object.rotation.z * 0.02;
+						   done = 0;
+					   }
+				    })(i);
+				}
+				for (var i in louvreobjs){
+				    (function(index){
+				    	var object = scene.getObjectByName(louvreobjs[index], true);
+				        if (object && object.rotation.z > 0) {
+							object.rotation.z -= 0.01;
+							object.position.x = (18-index)*0.135*Math.sin(object.rotation.z);
+							object.position.y = (18-index)*0.135*(1 - Math.cos(object.rotation.z)) - ydisp+ 0.001;
+							object.position.y += object.rotation.z * 0.02;
+							done = 0;
+					   }
+				    })(i);
+				}
+				var object = scene.getObjectByName("leverl", true);
+			    if (object && object.rotation.z > 0) {
+				   object.rotation.z -= 0.01;
+				   object.position.x = 6*0.135*Math.sin(object.rotation.z);
+				   object.position.y = 6*0.135*(1 - Math.cos(object.rotation.z)) - ydisp+ 0.001;
+				   object.position.y += object.rotation.z * 0.02;
+				   done = 0;
+			    }
+			    var object = scene.getObjectByName("leveru", true);
+			    if (object && object.rotation.z > 0) {
+				   object.rotation.z -= 0.01;
+				   object.position.x = 13*0.135*Math.sin(object.rotation.z);
+				   object.position.y = 13*0.135*(1 - Math.cos(object.rotation.z)) - ydisp+ 0.001;
+				   object.position.y += object.rotation.z * 0.02;
+				   done = 0;
+			    }
+				if (done > 0) {currState = 4;}
+			}
+			function explodeFrame(){
+				// don't explode if shutters open for now -- animations wrong
+				done++;
+				for (var i in allobjs){
+				    (function(index){
+				        var object = scene.getObjectByName(allobjs[index], true);
+				        if (object) {
+				        	delta = 0.005;
+				        	// if ( shuttersOpen && index > 9 && index < 36 ) {
+				        	// 	var louvreNum;
+				        	// 	if (index < 19) {
+				        	// 		louvreNum = 19;
+				        	// 	} else {
+				        	// 		louvreNum = 28 - index;
+				        	// 	}
+				        	// 	if (object.position.x > targetDistx[index] +
+				        	// 		(louvreNum)*0.135*Math.sin(object.rotation.z) + 0.005) {
+					        // 		object.position.x -= delta; done = 0;
+					        // 	} else if (object.position.x < targetDistx[index] +
+					        // 		(louvreNum)*0.135*Math.sin(object.rotation.z) - 0.005) {
+					        // 		object.position.x += delta; done = 0;
+					        // 	}
+					        // 	if (object.position.y > targetDisty[index] +  0.006 - ydisp +
+					        // 		(louvreNum)*0.135*(1 - Math.cos(object.rotation.z)) + .79 * 0.02 ) {
+					        // 		object.position.y -= delta; done = 0;
+					        // 	} else if (object.position.y < targetDisty[index] - 0.004 - ydisp +
+					        // 		(louvreNum)*0.135*(1 - Math.cos(object.rotation.z)) + .79 * 0.02) {
+					        // 		object.position.y += delta; done = 0;
+					        // 	}
+				        	// } else {
+					        	if (object.position.x > targetDistx[index] + 0.005) {
+					        		object.position.x -= delta; done = 0;
+					        	} else if (object.position.x < targetDistx[index] - 0.005) {
+					        		object.position.x += delta; done = 0;
+					        	}
+					        	if (object.position.y > targetDisty[index] + 0.005 - ydisp) {
+					        		object.position.y -= delta; done = 0;
+					        	} else if (object.position.y < targetDisty[index] - 0.005 - ydisp) {
+					        		object.position.y += delta; done = 0;
+					        	}
+					        // }
+				        	if (object.position.z > targetDistz[index] + 0.005) {
+				        		object.position.z -= delta; done = 0;
+				        	} else if (object.position.z < targetDistz[index] - 0.005) {
+				        		object.position.z += delta; done = 0;
+				        	}
+				        }
+				    })(i);
+				}
+
+				if (done > 30) {currState = 4.0;}
+			}
+			function implodeFrame() {
+				done++;
+				for (var i in noscrewobjs){
+				    (function(index){
+				        var object = scene.getObjectByName(noscrewobjs[index], true);
+				        if (object) {
+				        	if (object.position.x > 0.005) {
+				        		object.position.x -= delta; done = 0;
+				        	} else if (object.position.x < -0.005) {
+				        		object.position.x += delta; done = 0;
+				        	}
+				        	if (object.position.y > -ydisp+0.005) {
+				        		object.position.y -= delta; done = 0;
+				        	} else if (object.position.y < -ydisp-0.005) {
+				        		object.position.y += delta; done = 0;
+				        	}
+				        	if (object.position.z > 0.005) {
+				        		object.position.z -= delta; done = 0;
+				        	} else if (object.position.z < -0.005) {
+				        		object.position.z += delta; done = 0;
+				        	}
+				        }
+				    })(i);
+				}
+				var object = scene.getObjectByName("screws2_1", true);
+				if (object) {
+					if (object.position.z > 0.66) {
+						object.position.z -= delta; done = 0;
+					}
+				}
+				var object = scene.getObjectByName("screws2_2", true);
+				if (object) {
+					if (object.position.z < -0.66) {
+						object.position.z += delta; done = 0;
+					}
+				}
+
+				if (done > 30) {currState = 4.0;}
+			}
+			//////////////////////
+			//                  //
+			//	LOAD FUNCTIONS  //
+			//                  //
+			//////////////////////
+
+			// loader workflow -- take resource URL
+			// pass the loaded data to the onLoad function.
+			// add the loaded object to the scene
+
+			// TODO: Change everything to preload, and fade in at the appropriate time
+
+			// load0 loads the frame
+			function load0(first){
+				// REFLECTION MATERIAL //
+			    var urls = [
+			          'images/pos-x.png',
+			          'images/neg-x.png',
+			          'images/pos-y.png',
+			          'images/neg-y.png',
+			          'images/pos-z.png',
+			          'images/neg-z.png'
+			        ];
+
+			    // wrap it up into the object that we need
+			    var cubemap = THREE.ImageUtils.loadTextureCube(urls);
+			    cubemap.format = THREE.RGBFormat;
+			    var shader = THREE.ShaderLib[ "cube" ];
+			    shader.uniforms[ "tCube" ].texture = cubemap;
+
+			    var reflectionMaterial = new THREE.MeshBasicMaterial({
+			      color: 0xcccccc,
+			      envMap: cubemap,
+			      transparent: true,
+			      opacity: 0.3,
+			      needsUpdate: true
+			    });
+
+			    var loader = new THREE.ObjectLoader(manager);
+			    loader.load("data/set0/frame_sidejamb1.json", function ( obj ) {
+			    	obj.name = "sidejamb1";
+			    	obj.position.z = .4;
+			    	obj.position.y -= ydisp;
+			    	// obj.visible = false;
+				    scene.add( obj );
+				    objects.push(obj);
+				});
+				loader.load("data/set0/frame_sidejamb2.json", function ( obj ) {
+			    	obj.name = "sidejamb2";
+			    	obj.position.z = -.4;
+			    	obj.position.y -= ydisp;
+			    	// obj.visible = false;
+				    scene.add( obj );
+				    objects.push(obj);
+				});
+				loader.load("data/set0/frame_transom_top.json", function ( obj ) {
+			    	obj.name = "toptransom";
+			    	obj.position.y = .4;
+			    	obj.position.y -= ydisp;
+			    	// obj.visible = false;
+				    scene.add( obj );
+				    objects.push(obj);
+				});
+				loader.load("data/set0/frame_transom_bot.json", function ( obj ) {
+					obj.name = "bottransom";
+					obj.position.y = -.4;
+					obj.position.y -= ydisp;
+					// obj.visible = false;
+				    scene.add( obj );
+				    objects.push(obj);
+				});
+			    loader.load("data/set0/gasket_side1.json", function ( obj ) {
+			    	obj.name = "gasketside1";
+			    	obj.position.z = .1;
+			    	obj.position.y -= ydisp;
+				    scene.add( obj );
+				    objects.push(obj);
+				});
+				loader.load("data/set0/gasket_side2.json", function ( obj ) {
+			    	obj.name = "gasketside2";
+			    	obj.position.z = -.1;
+			    	obj.position.y -= ydisp;
+				    scene.add( obj );
+				    objects.push(obj);
+				});
+				loader.load("data/set0/gasket_transom_upper.json", function ( obj ) {
+			    	obj.name = "gaskettransomu";
+			    	obj.position.y = .1;
+			    	obj.position.y -= ydisp;
+				    scene.add( obj );
+				    objects.push(obj);
+				});
+				loader.load("data/set0/gasket_transom_lower.json", function ( obj ) {
+					obj.name = "gaskettransoml";
+					obj.position.y = -.1;
+					obj.position.y -= ydisp;
+				    scene.add( obj );
+				    objects.push(obj);
+				});
+			    loader.load("data/set0/screws1_1.json", function ( obj ) {
+			    	obj.name = "screws1_1";
+			    	obj.position.z = .3;
+			    	obj.position.y -= ydisp;
+			    	obj.visible = false;
+				    scene.add( obj );
+				    objects.push(obj);
+				});
+				loader.load("data/set0/screws1_2.json", function ( obj ) {
+			    	obj.name = "screws1_2";
+			    	obj.position.z = -.3;
+			    	obj.position.y -= ydisp;
+			    	obj.visible = false;
+				    scene.add( obj );
+				    objects.push(obj);
+				});
+
+				// loads louvre assembly elements
+			    //var loader = new THREE.ObjectLoader();
+			    loader.load("data/set1/louvre_glass.json", function ( obj ) {
+			    	obj.name = "louvreglass";
+			    	obj.position.x = .2;
+					obj.position.y -= .1;
+			    	obj.position.y -= ydispzoom;
+			    	obj.visible = false;
+			    	obj.children[0].material = reflectionMaterial;
+			    	// obj.renderOrder = 1;
+				    scene.add( obj );
+				});
+				loader.load("data/set1/louvre_gasket_rebate.json", function ( obj ) {
+			    	obj.name = "rebategasket";
+			    	obj.position.x = .2;
+			    	obj.position.y = .05;
+			    	obj.position.y -= ydispzoom;
+			    	obj.visible = false;
+				    scene.add( obj );
+				});
+				loader.load("data/set1/louvre_gasket_glazing.json", function ( obj ) {
+			    	obj.name = "glazinggasket";
+			    	obj.position.x = .2;
+			    	obj.position.y = -0.05;
+			    	obj.position.y -= ydispzoom;
+			    	obj.visible = false;
+				    scene.add( obj );
+				});
+				loader.load("data/set1/louvre_bearer.json", function ( obj ) {
+					obj.name = "louvrebearer";
+			    	obj.position.x = .2;
+					obj.position.y -= ydispzoom;
+					obj.visible = false;
+				    scene.add( obj );
+				});
+			    loader.load("data/set1/louvre_endcap1.json", function ( obj ) {
+			    	obj.name = "endcap1";
+			    	obj.position.x = .2;
+			    	obj.position.z = .1;
+					obj.position.y -= ydispzoom;
+			    	obj.visible = false;
+				    scene.add( obj );
+				});
+				loader.load("data/set1/louvre_endcap2.json", function ( obj ) {
+			    	obj.name = "endcap2";
+			    	obj.position.x = .2;
+			    	obj.position.z = -.1;
+			    	obj.position.y -= ydispzoom;
+			    	obj.visible = false;
+				    scene.add( obj );
+				});
+			    // axis screws for louvre 1
+			    loader.load("data/set1/louvre1_axis1.json", function ( obj ) {
+			        obj.name = "axis1";
+			        obj.position.z = .3;
+			        obj.position.y -= 1.8 * ydisp;
+			        obj.visible = false;
+			        scene.add( obj );
+			    });
+			    loader.load("data/set1/louvre1_axis2.json", function ( obj ) {
+			        obj.name = "axis2";
+			        obj.position.z = -.3;
+			        obj.position.y -= 1.8 * ydisp;
+			        obj.visible = false;
+			        scene.add( obj );
+			    });
+
+				// loads louvres 2 - 19
+
+
+				for (var i = 2; i <= 19; i++) {
+				    (function(index){
+				        loader.load("data/set2/louvre" + index + ".json", function ( obj ) {
+					    	obj.name = "louvre" + index;
+					    	obj.position.y -= 1.8*ydisp;
+					    	obj.visible = false;
+					    	obj.castShadow = true;
+				        	obj.children[7].material = reflectionMaterial;
+
+						    scene.add( obj );
+						});
+				    })(i);
+				}
+
+				// screws from step C (hold louvres to link bar)
+				// made visible in load2_1();
+			    loader.load("data/set2/linkbar1.json", function ( obj ) {
+			    	obj.position.z = .3;
+			    	obj.name = "linkbar1";
+			    	obj.position.y -= 1.8*ydisp;
+			    	obj.visible = false;
+				    scene.add( obj );
+				});
+				loader.load("data/set2/linkbar2.json", function ( obj ) {
+			    	obj.name = "linkbar2";
+			    	obj.position.z = -.3;
+			    	obj.position.y -= 1.8*ydisp;
+			    	obj.visible = false;
+				    scene.add( obj );
+				});
+				loader.load("data/set2/handle_linkbar_connection.json", function ( obj ) {
+			    	obj.name = "cams";
+			    	obj.position.z = .3;
+			    	obj.position.y -= 1.8*ydisp;
+			    	obj.visible = false;
+				    scene.add( obj );
+				});
+				loader.load("data/set2/linkbar_pivots1.json", function ( obj ) {
+			    	obj.name = "pivots1";
+			    	obj.position.z = .3;
+			    	obj.position.y -= 1.8*ydisp;
+			    	obj.visible = false;
+				    scene.add( obj );
+				});
+				loader.load("data/set2/linkbar_pivots2.json", function ( obj ) {
+					obj.name = "pivots2";
+					obj.position.z = -.3;
+					obj.position.y -= 1.8*ydisp;
+					obj.visible = false;
+				    scene.add( obj );
+				});
+			    loader.load("data/set2/axisscrews2.json", function ( obj ) {
+			    	obj.name = "screws2_1";
+			    	obj.position.z = 1;
+			    	obj.position.y -= 0.825*ydisp;
+			        obj.position.x = -0.0237;
+			    	obj.visible = false;
+			        obj.scale.set(0.001, 0.001, 0.001);
+			        obj.rotation.x = 90*Math.PI / 180;
+				    scene.add( obj );
+				});
+				loader.load("data/set2/axisscrews2.json", function ( obj ) {
+			    	obj.name = "screws2_2";
+			        obj.position.z = -1;
+			        obj.position.y -= 0.825*ydisp;
+			        obj.position.x = -0.0237;
+			    	obj.visible = false;
+			        obj.scale.set(0.001, 0.001, 0.001);
+			        obj.rotation.x = 270*Math.PI / 180;
+				    scene.add( obj );
+				});
+
+				// Loads scene 3 objects -- handles, and covers
+				loader.load("data/set3/handle_upper_lever.json", function ( obj ) {
+			    	obj.position.x = -.4;
+			    	obj.position.y -= 1.2*ydisp;
+			    	obj.visible = false;
+			    	obj.name = "leveru";
+				    scene.add( obj );
+				});
+				loader.load("data/set3/handle_lower_lever.json", function ( obj ) {
+			    	obj.name = "leverl";
+			    	obj.position.x = -.4;
+			    	obj.position.y -= 1.2*ydisp;
+			    	obj.visible = false;
+				    scene.add( obj );
+				});
+			    loader.load("data/set3/handle_upper_housing.json", function ( obj ) {
+			    	obj.position.x = -.4;
+			    	obj.position.y -= 1.2*ydisp;
+			    	obj.visible = false;
+			    	obj.name = "housingu";
+				    scene.add( obj );
+				});
+				loader.load("data/set3/handle_lower_housing.json", function ( obj ) {
+			    	obj.name = "housingl";
+			    	obj.position.x = -.4;
+			    	obj.position.y -= 1.2*ydisp;
+			    	obj.visible = false;
+				    scene.add( obj );
+				});
+			    // loader.load("data/set3/handle_upper_screws.json", function ( obj ) {
+			    loader.load("data/set3/handlescrews.json", function ( obj ) {
+			    	obj.position.x = -.5;
+			    	obj.position.y -= 1.2*ydisp;
+			    	obj.visible = false;
+			    	obj.name = "Lever mechanism screws";
+				    scene.add( obj );
+				});
+				// loader.load("data/set3/handle_lower_screws.json", function ( obj ) {
+			    // 	obj.name = "screws3l";
+			    // 	obj.position.x = -.5;
+			    // 	obj.position.y -= 1.2*ydisp;
+			    // 	obj.visible = false;
+				//     scene.add( obj );
+				// });
+				loader.load("data/set3/jambcover1.json", function ( obj ) {
+			    	obj.name = "jambcover1";
+			    	obj.position.z = .4;
+			    	obj.position.y -= 1.2*ydisp;
+			    	obj.visible = false;
+				    scene.add( obj );
+				});
+				loader.load("data/set3/jambcover2.json", function ( obj ) {
+					obj.name = "jambcover2";
+					obj.position.z = -.4;
+					obj.position.y -= 1.2*ydisp;
+			    	obj.visible = false;
+				    scene.add( obj );
+				});
+			    loader.load("data/set3/drainage_cover.json", function ( obj ) {
+			    	obj.name = "drainage";
+			    	obj.position.x = .4;
+			    	obj.position.y -= .5*ydisp;
+			    	obj.visible = false;
+				    scene.add( obj );
+				});
+			    loader.load("data/set3/flyscreen.json", function ( obj ) {
+			    	obj.name = "flyscreen";
+			    	obj.position.x = -.5;
+			    	obj.position.y -= .5*ydisp;
+			    	obj.visible = false;
+				    scene.add( obj );
+				});
+			    loader.load("data/set3/flyscreen_mesh.json", function ( obj ) {
+			    	obj.name = "flyscreen mesh";
+			    	obj.position.x = -.5;
+			    	obj.position.y -= .5*ydisp;
+			    	obj.visible = false;
+					var flyscreenTexture = new THREE.ImageUtils.loadTexture( 'images/FLYSCREEN TILE.png' );
+					flyscreenTexture.wrapS = flyscreenTexture.wrapT = THREE.RepeatWrapping;
+					flyscreenTexture.repeat.set( 200, 200 );
+					var flyscreenMat = new THREE.MeshBasicMaterial( { color: 0x00ff00, map: flyscreenTexture, transparent: true, overdraw: true, side: THREE.DoubleSide} );
+					obj.children[0].material = flyscreenMat;
+
+					scene.add(obj);
+				});
+				// for (var i in scene3objs){
+				// 	(function(index){
+				//         var object = scene.getObjectByName(scene3objs[index], true);
+				//     	object.position.y -= ydisp;
+				//     	object.visible = false;
+				//     })(i);
+				// }
+				return;
+			}
+
+			function showFrameScrews(){
+				for (var i in framescrewobjs){
+				    (function(index){
+				        var object = scene.getObjectByName(framescrewobjs[index], true);
+				        if (object) {object.visible = true; objects.push(object);}
+				    })(i);
+				}
+				elementsLoaded = 1;
+			}
+
+			function load1(){
+			    var louvre1noaxis = ["louvreglass", "louvrebearer", "glazinggasket",
+			        "rebategasket", "endcap1", "endcap2"]
+				for (var i in louvre1noaxis){
+				    (function(index){
+				        var object = scene.getObjectByName(louvre1noaxis[index], true);
+				        if (object) {
+			                object.visible = true;
+			                objects.push(object);
+			            }
+				    })(i);
+				}
+				elementsLoaded = 1;
+			}
+			function load1_1(){
+			    var object = scene.getObjectByName("axis1", true);
+			    object.visible = true;
+			    objects.push(object);
+			    var object = scene.getObjectByName("axis2", true);
+			    object.visible = true;
+			    objects.push(object);
+				elementsLoaded = 1;
+			}
+			function load2() {
+				for (var i in louvreobjs){
+				    (function(index){
+				        var object = scene.getObjectByName(louvreobjs[index], true);
+				        if (object) {object.visible = true; objects.push(object); }
+				    })(i);
+				}
+				elementsLoaded = 1;
+			}
+			function load2_1(){
+				for (var i in linkbarobjs){
+				    (function(index){
+				        var object = scene.getObjectByName(linkbarobjs[index], true);
+				        if (object) {object.visible = true; objects.push(object); }
+				    })(i);
+				}
+				elementsLoaded = 1;
+			}
+			function load2_screws(){
+			    var object = scene.getObjectByName( "screws2_1", true);
+			    if (object) {object.visible = true;
+			    	objects.push(object);
+			    }
+			    var object = scene.getObjectByName( "screws2_2", true);
+			    if (object) {object.visible = true;
+			    	objects.push(object);
+			    }
+				elementsLoaded = 1;
+			}
+			function load3_1() {
+				// var loader = new THREE.ObjectLoader();
+				for (var i in handleobjs){
+					(function(index){
+				        var object = scene.getObjectByName(handleobjs[index], true);
+				        if (object) {object.visible = true; objects.push(object); }
+				    })(i);
+				}
+				elementsLoaded = 1;
+			}
+			function load3_2() {
+				// var loader = new THREE.ObjectLoader();
+				for (var i in miscobjs){
+					(function(index){
+				        var object = scene.getObjectByName(miscobjs[index], true);
+				        if (object) {object.visible = true; objects.push(object); }
+				    })(i);
+				}
+				elementsLoaded = 1;
+			}
+			function tare(){
+				for (var i in allobjs){
+				    (function(index){
+				        var object = scene.getObjectByName(allobjs[index], true);
+				        if (object) object.position.set( 0, -ydisp, 0 ) ;
+				    })(i);
+				}
+			    var object = scene.getObjectByName("screws2_1", true);
+			    if (object) object.position.set( -0.0237, -0.025*ydisp, 0.66 ) ;
+			    var object = scene.getObjectByName("screws2_2", true);
+			    if (object) object.position.set( -0.0237, -0.025*ydisp, -0.66 ) ;
+
+				elementsLoaded = 1;
+			}
+			function tare0(){
+				for (var i in frameobjs){
+				    (function(index){
+				        var object = scene.getObjectByName(frameobjs[index], true);
+
+				        if (object) {object.position.set(0, -1.8*ydisp, 0); }
+
+				    })(i);
+				}
+				elementsLoaded = 1;
+			}
+
+			function replayDemo(){
+			    camera.position.set(1, 5, 0);
+			    camera.lookAt( scene.position );
+
+			    for (var i in allobjs){
+			        (function(index){
+			            var object = scene.getObjectByName(allobjs[index], true);
+			            if (object) {
+			                object.position.x = targetDistx[index];
+			                object.position.y = targetDisty[index] - ydisp;
+			                object.position.z = targetDistz[index];
+			                object.visible = false;
+			            }
+			        })(i);
+			    }
+			    var obj = scene.getObjectByName("drainage", true);
+			        obj.position.x = .4;
+			        obj.position.y = -.5*ydisp;
+			        obj.visible = false;
+
+			    var obj = scene.getObjectByName("sidejamb1", true);
+			        obj.position.z = .4;
+			        obj.position.y = - ydisp;
+			        obj.visible = true;
+			    var obj = scene.getObjectByName("sidejamb2", true);
+			        obj.position.z = -.4;
+			        obj.position.y = - ydisp;
+			        obj.visible = true;
+			    var obj = scene.getObjectByName("toptransom", true);
+			        obj.position.y = .4;
+			        obj.position.y -= ydisp;
+			        obj.visible = true;
+			    var obj = scene.getObjectByName("bottransom", true);
+			        obj.position.y = -.4;
+			        obj.position.y -= ydisp;
+			        obj.visible = true;
+			    var obj = scene.getObjectByName("gasketside1", true);
+			        obj.position.z = .1;
+			        obj.position.y = - ydisp;
+			        obj.visible = true;
+			    var obj = scene.getObjectByName("gasketside2", true);
+			        obj.position.z = -.1;
+			        obj.position.y = - ydisp;
+			        obj.visible = true;
+			    var obj = scene.getObjectByName("gaskettransomu", true);
+			    	obj.position.y = .1;
+			    	obj.position.y -= ydisp;
+			        obj.visible = true;
+				var obj = scene.getObjectByName("gaskettransoml", true);
+					obj.position.y = -.1;
+					obj.position.y -= ydisp;
+			        obj.visible = true;
+
+			    var obj = scene.getObjectByName("louvreglass", true);
+			        obj.position.x = .2;
+			        obj.position.y = - .1;
+			        obj.position.y -= ydispzoom;
+			        obj.rotation.z = 0;
+			    var obj = scene.getObjectByName("rebategasket", true);
+			        obj.position.x = .2;
+			        obj.position.y = .05;
+			        obj.position.y -= ydispzoom;
+			        obj.rotation.z = 0;
+			    var obj = scene.getObjectByName("glazinggasket", true);
+			        obj.position.x = .2;
+			        obj.position.y = -0.05;
+			        obj.position.y -= ydispzoom;
+			        obj.rotation.z = 0;
+			    var obj = scene.getObjectByName("louvrebearer", true);
+			        obj.position.x = .2;
+			        obj.position.y = -ydispzoom;
+			        obj.rotation.z = 0;
+			    var obj = scene.getObjectByName("endcap1", true);
+			        obj.position.x = .2;
+			        obj.position.z = .1;
+			        obj.position.y = - ydispzoom;
+			        obj.rotation.z = 0;
+			    var obj = scene.getObjectByName("endcap2", true);
+			        obj.position.x = .2;
+			        obj.position.z = -.1;
+			        obj.position.y = - ydispzoom;
+			        obj.rotation.z = 0;
+			    var obj = scene.getObjectByName("axis1", true);
+			        obj.position.z = .3;
+			        obj.position.y = - 1.8 * ydisp;
+			        obj.rotation.z = 0;
+			    var obj = scene.getObjectByName( "axis2", true);
+			        obj.position.z = -.3;
+			        obj.position.y = - 1.8 * ydisp;
+			        obj.rotation.z = 0;
+
+			        var obj = scene.getObjectByName("linkbar1", true);
+			            obj.position.y = -1.8*ydisp;
+			        var obj = scene.getObjectByName("linkbar2", true);
+			            obj.position.y = -1.8*ydisp;
+			        var obj = scene.getObjectByName("cams", true);
+			            obj.position.y = -1.8*ydisp;
+			        var obj = scene.getObjectByName("pivots1", true);
+			            obj.position.y = -1.8*ydisp;
+			        var obj = scene.getObjectByName("pivots2", true);
+			            obj.position.y = -1.8*ydisp;
+			        var obj = scene.getObjectByName("screws2_1", true);
+			            obj.position.y = -0.825*ydisp;
+			            obj.position.z = 1;
+			            obj.position.x = -0.0237;
+			        var obj = scene.getObjectByName("screws2_2", true);
+			            obj.position.y = -0.825*ydisp;
+			            obj.position.z = -1;
+			            obj.position.x = -0.0237;
+
+			        // Loads scene 3 objects -- handles, and covers
+			        var obj = scene.getObjectByName("leveru", true);
+			            obj.position.y = -1.2*ydisp;
+			            obj.rotation.z = 0;
+			        var obj = scene.getObjectByName("leverl", true);
+			            obj.position.y = -1.2*ydisp
+			            obj.rotation.z = 0;
+			        var obj = scene.getObjectByName("housingu", true);
+			            obj.position.y = -1.2*ydisp;
+			        var obj = scene.getObjectByName("housingl", true);
+			            obj.position.y = -1.2*ydisp;
+			        var obj = scene.getObjectByName("Lever mechanism screws", true);
+			            obj.position.y = -1.2*ydisp;
+			        // var obj = scene.getObjectByName("screws3l", true);
+			        //     obj.position.y = -1.2*ydisp;
+
+
+				for (var i in louvreobjs) {
+				    (function(index){
+			            var obj = scene.getObjectByName(louvreobjs[index], true);
+			            if (obj) {
+			    	    	obj.position.x = 0;
+			    	    	obj.position.y = - 1.8*ydisp;
+			                obj.rotation.z = 0;
+			            }
+				    })(i);
+				}
+
+			    $(document.body).removeClass('interact');
+			    $(document.body).removeClass('notOnExplode');
+			    document.getElementById("explode").src = "images/EXPLODE CIRCLE.png";
+			    document.getElementById("shutters").src = "images/CLOSE LOUVRE.png";
+			    shuttersOpen = true;
+			    $(document.body).addClass('notOnOpen');
+			    currState = 0.0;
+			}
+
+		</script>
+
+	</body>
+</html>
